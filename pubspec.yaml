@@ -1,0 +1,44 @@
+name: healthy_hour
+description: Healthy Hour — alternates between Working and Walking sessions and reminds you to drink water.
+version: 0.1.0+1
+publish_to: none
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  bloc: ^8.1.4
+  flutter_bloc: ^8.1.6
+  equatable: ^2.0.5
+
+  # Routing
+  go_router: ^14.6.0
+
+  # Persistence
+  hive_ce: ^2.7.0
+  hive_ce_flutter: ^2.0.0
+  path_provider: ^2.1.4
+
+  # Misc
+  rxdart: ^0.28.0
+  uuid: ^4.5.1
+
+  # Local design system
+  healthy_hour_ui_kit:
+    path: packages/healthy_hour_ui_kit
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  bloc_test: ^9.1.7
+  build_runner: ^2.4.13
+  hive_ce_generator: ^1.6.0
+  very_good_analysis: ^6.0.0
+
+flutter:
+  uses-material-design: true

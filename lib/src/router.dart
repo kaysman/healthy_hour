@@ -1,0 +1,43 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:healthy_hour/src/domain/domain.dart';
+import 'package:healthy_hour/src/features/home/home.dart';
+import 'package:healthy_hour/src/features/settings/settings.dart';
+import 'package:uuid/uuid.dart';
+
+GoRouter buildRouter({
+  required SessionRepository sessions,
+  required SettingsRepository settings,
+}) {
+  const uuid = Uuid();
+  return GoRouter(
+    initialLocation: '/',
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, _) => BlocProvider(
+          create: (_) => HomeBloc(
+            sessions: sessions,
+            settings: settings,
+            switchActivity: SwitchActivity(sessions),
+            getTodaySessions: GetTodaySessions(sessions),
+            updateSession: UpdateSession(sessions),
+            deleteSession: DeleteSession(sessions),
+            idGenerator: uuid.v4,
+          )..add(const HomeStarted()),
+          child: HomePage(
+            onOpenSettings: () => context.go('/settings'),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, _) => BlocProvider(
+          create: (_) =>
+              SettingsBloc(repository: settings)..add(const SettingsStarted()),
+          child: const SettingsPage(),
+        ),
+      ),
+    ],
+  );
+}
