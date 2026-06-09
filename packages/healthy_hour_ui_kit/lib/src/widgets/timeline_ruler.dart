@@ -128,9 +128,9 @@ class _RulerPainter extends CustomPainter {
   final DateTime? futureFrom;
 
   // Tick lengths from baseline.
-  static const double _hourTick = 14;
-  static const double _quarterTick = 9;
-  static const double _fiveTick = 5;
+  static const double _majorTick = 14;
+  static const double _midTick = 9;
+  static const double _minorTick = 5;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -149,26 +149,26 @@ class _RulerPainter extends CustomPainter {
       baselinePaint,
     );
 
-    final hourPaint = Paint()
+    final majorPaint = Paint()
       ..color = tickColorStrong
       ..strokeWidth = 1.2
       ..strokeCap = StrokeCap.round;
-    final hourPaintDim = Paint()
+    final majorPaintDim = Paint()
       ..color = tickColorStrong.withValues(alpha: 0.3)
       ..strokeWidth = 1.2
       ..strokeCap = StrokeCap.round;
-    final quarterPaint = Paint()
+    final midPaint = Paint()
       ..color = tickColor
       ..strokeWidth = 1
       ..strokeCap = StrokeCap.round;
-    final quarterPaintDim = Paint()
+    final midPaintDim = Paint()
       ..color = tickColor.withValues(alpha: 0.3)
       ..strokeWidth = 1
       ..strokeCap = StrokeCap.round;
-    final fivePaint = Paint()
+    final minorPaint = Paint()
       ..color = tickColor.withValues(alpha: 0.6)
       ..strokeWidth = 0.6;
-    final fivePaintDim = Paint()
+    final minorPaintDim = Paint()
       ..color = tickColor.withValues(alpha: 0.18)
       ..strokeWidth = 0.6;
 
@@ -177,24 +177,35 @@ class _RulerPainter extends CustomPainter {
         ? totalMinutes + 1
         : futureFrom!.difference(start).inMinutes;
 
-    // Step in 5-minute increments — every step we know which tier (hour /
-    // quarter / five) it belongs to, so we can pick the right paint and
-    // length without iterating minute-by-minute.
-    for (var m = 0; m <= totalMinutes; m += 5) {
+    final tiers = _pickTiers(minutesPerPixel);
+
+    // Wall-clock minute-of-day for `start`. We align ticks to clock
+    // boundaries (e.g. HH:00, HH:15) rather than to `start` itself, so
+    // labels read "14:00" at the actual top of the hour even when the
+    // ruler begins mid-hour.
+    final startWallMin = start.hour * 60 + start.minute;
+    // Offset to the first wall-aligned tick (≥ start).
+    final firstM = (tiers.step - (startWallMin % tiers.step)) % tiers.step;
+
+    for (var m = firstM; m <= totalMinutes; m += tiers.step) {
       final x = m / minutesPerPixel;
       final dim = m >= dimFromMinutes;
+      final wallMin = (startWallMin + m) % 1440;
+
+      final isMajor = wallMin % tiers.major == 0;
+      final isMid = !isMajor && wallMin % tiers.mid == 0;
 
       double tickLen;
       Paint paint;
-      if (m % 60 == 0) {
-        tickLen = _hourTick;
-        paint = dim ? hourPaintDim : hourPaint;
-      } else if (m % 15 == 0) {
-        tickLen = _quarterTick;
-        paint = dim ? quarterPaintDim : quarterPaint;
+      if (isMajor) {
+        tickLen = _majorTick;
+        paint = dim ? majorPaintDim : majorPaint;
+      } else if (isMid) {
+        tickLen = _midTick;
+        paint = dim ? midPaintDim : midPaint;
       } else {
-        tickLen = _fiveTick;
-        paint = dim ? fivePaintDim : fivePaint;
+        tickLen = _minorTick;
+        paint = dim ? minorPaintDim : minorPaint;
       }
       canvas.drawLine(
         Offset(x, baselineY),
@@ -202,9 +213,10 @@ class _RulerPainter extends CustomPainter {
         paint,
       );
 
-      if (m % 60 == 0 && !dim) {
-        final t = start.add(Duration(minutes: m));
-        final label = '${t.hour.toString().padLeft(2, '0')}:00';
+      if (isMajor && !dim) {
+        final hh = (wallMin ~/ 60).toString().padLeft(2, '0');
+        final mm = (wallMin % 60).toString().padLeft(2, '0');
+        final label = tiers.minutePrecision ? '$hh:$mm' : '$hh:00';
         final tp = TextPainter(
           text: TextSpan(
             text: label,
@@ -259,4 +271,80 @@ class _RulerPainter extends CustomPainter {
       old.minutesPerPixel != minutesPerPixel ||
       old.showNowMarker != showNowMarker ||
       old.futureFrom != futureFrom;
+}
+
+/// Tick / label intervals (in minutes) used by the ruler at a given zoom.
+/// `step` divides `mid` divides `major`, so a single iteration at `step`
+/// can decide each tick's tier with a couple of modulos.
+class _RulerTiers {
+  const _RulerTiers({
+    required this.step,
+    required this.mid,
+    required this.major,
+    required this.minutePrecision,
+  });
+
+  final int step;
+  final int mid;
+  final int major;
+  final bool minutePrecision;
+}
+
+/// Pick the tier set whose label spacing reads cleanly at the given zoom.
+/// The thresholds target ~24+ px between minor ticks and ~50+ px between
+/// labels at typical viewport widths.
+_RulerTiers _pickTiers(double minutesPerPixel) {
+  final pxPerMin = 1 / minutesPerPixel;
+  if (pxPerMin >= 24) {
+    // Each minute is ≥24 px wide — label every minute.
+    return const _RulerTiers(
+      step: 1,
+      mid: 1,
+      major: 1,
+      minutePrecision: true,
+    );
+  }
+  if (pxPerMin >= 8) {
+    // Tick every minute; label every 5 minutes.
+    return const _RulerTiers(
+      step: 1,
+      mid: 5,
+      major: 5,
+      minutePrecision: true,
+    );
+  }
+  if (pxPerMin >= 3) {
+    // Tick every 5 min; label every 15 min.
+    return const _RulerTiers(
+      step: 5,
+      mid: 15,
+      major: 15,
+      minutePrecision: true,
+    );
+  }
+  if (pxPerMin >= 1) {
+    // Default working zoom — tick every 5 min, mid every 15, label hourly.
+    return const _RulerTiers(
+      step: 5,
+      mid: 15,
+      major: 60,
+      minutePrecision: false,
+    );
+  }
+  if (pxPerMin >= 0.4) {
+    // Tick every 15 min; label hourly.
+    return const _RulerTiers(
+      step: 15,
+      mid: 30,
+      major: 60,
+      minutePrecision: false,
+    );
+  }
+  // Sparsest — half-day overview.
+  return const _RulerTiers(
+    step: 30,
+    mid: 60,
+    major: 120,
+    minutePrecision: false,
+  );
 }

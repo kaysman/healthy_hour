@@ -6,9 +6,8 @@ import 'package:healthy_hour_ui_kit/src/widgets/timeline_ruler.dart';
 
 /// A single past or live session laid on the [TimelineTrack].
 ///
-/// Unlike a point-in-time marker, a segment has a real duration and is drawn
-/// as a horizontal bar between [startedAt] and [endedAt] (or [now] if the
-/// segment is still running).
+/// Has a real duration and is rendered as a horizontal colored region in
+/// the tape (no separate "bar row" anymore — see [TimelineTrack]).
 @immutable
 class TimelineSegment {
   const TimelineSegment({
@@ -27,29 +26,29 @@ class TimelineSegment {
   final DateTime? endedAt;
   final String emoji;
 
-  /// Optional fill color override. If null the track uses [AppColors.surface]
-  /// — a low-contrast surface that doesn't compete with the brand.
+  /// Optional fill color for the segment's region in the tape. If null
+  /// the track falls back to [AppColors.surface] — a low-contrast surface
+  /// that doesn't compete with the brand.
   final Color? tone;
 
   bool get isLive => endedAt == null;
 }
 
-/// Combined session strip + ruler used on the Timeline screen.
+/// Single-row "tape" timeline. The ruler and the session strip share one
+/// surface: each session is a colored fill in the lower band of the ruler
+/// card, with hour labels riding above and tick marks descending through
+/// the fill. Compared to a separate-bar layout this:
 ///
-/// Layered top-to-bottom:
-///
-///   - **Segment row** — each session is a horizontal bar positioned by time
-///     and sized by duration. The selected segment gets a green outline; the
-///     live segment gets a green right edge.
-///   - **Ruler card** — three-tier ruler (hour / 15-min / 5-min ticks) on a
-///     muted surface. The selected line drops down through the ruler.
-///   - **Now marker** — a vertical green line that ties the bar row and the
-///     ruler together, with a "Now" pill above and a triangle pin on the
-///     ruler baseline.
+///   - removes the vertical-overflow problem (selected segments no longer
+///     pop above the ruler — selection is signalled by brightness + a
+///     thin success outline instead);
+///   - reads as one continuous tape of the day where gaps between sessions
+///     are visible as gaps in color rather than empty horizontal space;
+///   - frees up vertical space on the host screen.
 ///
 /// The whole strip scrolls horizontally as one unit. The right scroll edge
 /// is determined by [end] — pass `now` (or `now` plus a small pad) to make
-/// the future unreachable, which is what the Healthy Hour timeline does.
+/// the future visually unreachable.
 class TimelineTrack extends StatelessWidget {
   const TimelineTrack({
     required this.segments,
@@ -61,9 +60,8 @@ class TimelineTrack extends StatelessWidget {
     this.scrollController,
     super.key,
     this.minutesPerPixel = 1.2,
-    this.barHeight = 36,
-    this.rulerHeight = 56,
-    this.barRowGap = AppSpacing.sm,
+    this.height = 64,
+    this.minEmojiWidth = 48,
   });
 
   final List<TimelineSegment> segments;
@@ -74,15 +72,14 @@ class TimelineTrack extends StatelessWidget {
   final ValueChanged<String?> onSelect;
   final ScrollController? scrollController;
   final double minutesPerPixel;
-  final double barHeight;
-  final double rulerHeight;
-  final double barRowGap;
 
-  /// Minimum visible width for any segment so single-tap targets stay usable
-  /// even for very short sessions. Sized so the emoji glyph plus the bar's
-  /// horizontal padding always fits — anything smaller and the inner Row
-  /// overflows.
-  static const double _minBarWidth = 36;
+  /// Total vertical extent of the tape (ruler labels + ticks + fills).
+  final double height;
+
+  /// Minimum painted width of a session region for its emoji to be shown
+  /// centered inside it. Below this threshold the region is still tappable
+  /// and the fill still draws — only the emoji is suppressed.
+  final double minEmojiWidth;
 
   /// Width of the rendered Now pill. Used to clamp pill placement so its
   /// right edge never overflows the Stack's bounds.
@@ -101,10 +98,10 @@ class TimelineTrack extends StatelessWidget {
   /// extending past the visible area dissolves rather than getting hard-cut.
   static const double _edgeFadeWidth = 24;
 
-  /// How far the selected segment is lifted above the regular bar row. Gives
-  /// it a visible pop-out so it stands clear of any neighboring bar that
-  /// might otherwise overlap or sit flush against it.
-  static const double _selectedLift = 24;
+  /// Vertical center of the lower band where session emojis sit, expressed
+  /// as a fraction of [height]. Picked so the emoji doesn't collide with
+  /// the descending hour ticks (which end roughly at the band's top).
+  static const double _emojiCenterFraction = 0.78;
 
   double _xFor(DateTime at) =>
       at.difference(start).inMinutes / minutesPerPixel;
@@ -113,21 +110,8 @@ class TimelineTrack extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final width = end.difference(start).inMinutes / minutesPerPixel;
-    // The strip reserves [_selectedLift] of headroom above the bar row so the
-    // selected segment can pop up without leaving the viewport.
-    final totalHeight =
-        _selectedLift + barHeight + barRowGap + rulerHeight;
     final showNow = !now.isBefore(start) && !now.isAfter(end);
     final futureVisible = end.isAfter(now);
-
-    final selectedSegment = selectedId == null
-        ? null
-        : segments.cast<TimelineSegment?>().firstWhere(
-              (s) => s?.id == selectedId,
-              orElse: () => null,
-            );
-    final selectedX =
-        selectedSegment == null ? null : _xFor(selectedSegment.startedAt);
 
     // Clamp the pill so its right edge stays inside the Stack.
     final nowX = showNow ? _xFor(now) : 0.0;
@@ -138,16 +122,14 @@ class TimelineTrack extends StatelessWidget {
         : preferredPillLeft;
 
     return SizedBox(
-      height: totalHeight,
-      // Fades anything (bars, ruler, Now line) that runs past the viewport
+      height: height,
+      // Fades anything (fills, ruler, Now line) that runs past the viewport
       // edge into transparency — a "more here, scroll for it" affordance
       // that's universally readable.
       child: ShaderMask(
         shaderCallback: (bounds) {
           final fade = _edgeFadeWidth / bounds.width;
           return LinearGradient(
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
             colors: const [
               Color(0x00000000),
               Color(0xFF000000),
@@ -162,156 +144,222 @@ class TimelineTrack extends StatelessWidget {
           controller: scrollController,
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
-          // Edge padding so the leftmost / rightmost moments aren't flush
-          // against the viewport edge.
           padding: const EdgeInsets.symmetric(horizontal: edgePad),
           child: SizedBox(
             width: width,
-            height: totalHeight,
-            child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // Ruler card (rounded surface) — pinned to the bottom.
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: rulerHeight,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: c.surfaceMuted,
-                    borderRadius: BorderRadius.circular(AppSpacing.md),
-                  ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(AppSpacing.md),
-                    child: TimelineRulerCanvas(
-                      start: start,
-                      end: end,
-                      now: now,
-                      height: rulerHeight,
-                      minutesPerPixel: minutesPerPixel,
-                      // The track owns the Now visual itself (pill + line).
-                      showNowMarker: false,
-                      // Dim ticks and labels in the future region.
-                      futureFrom: futureVisible ? now : null,
+            height: height,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: c.surfaceMuted,
+                borderRadius: BorderRadius.circular(AppSpacing.md),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppSpacing.md),
+                child: Stack(
+                  children: [
+                    // 1. Colored session fills (the "tape").
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: _TapeFillPainter(
+                          segments: segments,
+                          start: start,
+                          now: now,
+                          minutesPerPixel: minutesPerPixel,
+                          selectedId: selectedId,
+                          idleColor: c.surfaceMuted,
+                          successColor: c.success,
+                        ),
+                      ),
                     ),
-                  ),
+
+                    // 2. Ruler ticks + labels — drawn over the fills so the
+                    //    grid stays legible no matter the activity color.
+                    Positioned.fill(
+                      child: TimelineRulerCanvas(
+                        start: start,
+                        end: end,
+                        now: now,
+                        height: height,
+                        minutesPerPixel: minutesPerPixel,
+                        showNowMarker: false,
+                        futureFrom: futureVisible ? now : null,
+                      ),
+                    ),
+
+                    // 3. Tap targets + centered emojis per session.
+                    for (final s in segments) ..._segmentOverlay(context, s),
+
+                    // 4. Selection vertical line — anchors the selected
+                    //    region's left edge to the eye, doubles as the
+                    //    "you tapped here" affordance.
+                    if (selectedId != null)
+                      ..._selectionLine(context),
+
+                    // 5. Now marker — vertical line + pill on top of all.
+                    if (showNow) ..._buildNowMarker(context, pillLeft),
+                  ],
                 ),
               ),
-
-              // Selection: green vertical line from the top of the bar row
-              // down through the ruler. Drawn before the bars so the
-              // selected bar's outline visually sits on top of it.
-              if (selectedX != null)
-                Positioned(
-                  left: selectedX - 0.75,
-                  top: 0,
-                  bottom: 0,
-                  width: 1.5,
-                  child: ColoredBox(color: c.success),
-                ),
-
-              // Session bars, positioned by time.
-              for (final s in segments) _positionedBar(context, s),
-
-              // Now marker — vertical line + pill, drawn on top of bars so
-              // the live session's right edge meets it cleanly.
-              if (showNow) ..._buildNowMarker(context, pillLeft),
-            ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
 
-  Widget _positionedBar(BuildContext context, TimelineSegment s) {
-    final c = context.colors;
+  List<Widget> _segmentOverlay(BuildContext context, TimelineSegment s) {
     final left = _xFor(s.startedAt);
     final rawRight = _xFor(s.endedAt ?? now);
-    final right =
-        (rawRight - left) < _minBarWidth ? left + _minBarWidth : rawRight;
-    final barWidth = right - left;
+    final width = (rawRight - left).clamp(0.0, double.infinity);
+    if (width <= 0) return const [];
 
-    final isSelected = s.id == selectedId;
-    final isLive = s.isLive;
-    final fill = s.tone ?? c.surface;
+    final showEmoji = width >= minEmojiWidth;
+    final emojiTop = height * _emojiCenterFraction - 9;
 
-    // Render the emoji only if there's room for it inside the bar's
-    // padding. Combined with [_minBarWidth] this should always be true,
-    // but leaving the check here prevents accidental future regressions
-    // from re-introducing the RenderFlex overflow.
-    const horizontalPadding = 8.0;
-    const emojiBoxWidth = 20.0;
-    final showEmoji = barWidth >= (horizontalPadding * 2) + emojiBoxWidth;
-    final showLiveDot = isLive && barWidth > 64;
-    final radius = BorderRadius.circular(AppSpacing.sm);
-
-    return Positioned(
-      left: left,
-      // Selected bars pop up to the very top of the strip; everything else
-      // sits in the regular row, [_selectedLift] below.
-      top: isSelected ? 0 : _selectedLift,
-      width: barWidth,
-      height: barHeight,
-      child: GestureDetector(
-        onTap: () => onSelect(s.id),
-        behavior: HitTestBehavior.opaque,
-        // ClipRRect guarantees no descendant can paint past the bar's
-        // rounded edges, even at the minimum width.
-        child: ClipRRect(
-          borderRadius: radius,
-          child: Container(
-            decoration: BoxDecoration(
-              color: fill,
-              borderRadius: radius,
-              border: Border.all(
-                color: isSelected ? c.success : c.divider,
-                width: isSelected ? 1.5 : 0.5,
-              ),
-            ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: horizontalPadding),
-            alignment: Alignment.centerLeft,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (showEmoji)
-                  Text(s.emoji, style: const TextStyle(fontSize: 14)),
-                if (showEmoji && showLiveDot) const SizedBox(width: 6),
-                if (showLiveDot) _LiveDot(color: c.success),
-              ],
-            ),
-          ),
+    return [
+      Positioned(
+        left: left,
+        top: 0,
+        width: width,
+        height: height,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => onSelect(s.id),
+          child: showEmoji
+              ? Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Positioned(
+                      top: emojiTop,
+                      child: s.isLive
+                          ? _LivePulse(child: _emoji(s.emoji))
+                          : _emoji(s.emoji),
+                    ),
+                  ],
+                )
+              : const SizedBox.shrink(),
         ),
       ),
-    );
+    ];
+  }
+
+  Widget _emoji(String e) =>
+      Text(e, style: const TextStyle(fontSize: 14));
+
+  List<Widget> _selectionLine(BuildContext context) {
+    final selected = segments.cast<TimelineSegment?>().firstWhere(
+          (s) => s?.id == selectedId,
+          orElse: () => null,
+        );
+    if (selected == null) return const [];
+    final c = context.colors;
+    final x = _xFor(selected.startedAt);
+    return [
+      Positioned(
+        left: x - 0.75,
+        top: 0,
+        bottom: 0,
+        width: 1.5,
+        child: ColoredBox(color: c.success),
+      ),
+    ];
   }
 
   List<Widget> _buildNowMarker(BuildContext context, double pillLeft) {
     final c = context.colors;
     final x = _xFor(now);
-    final rowTop = _selectedLift;
     return [
-      // Vertical line — starts below the regular bar row and runs through
-      // the ruler.
       Positioned(
         left: x - 0.75,
-        top: rowTop + barHeight,
+        top: 0,
         bottom: 0,
         width: 1.5,
         child: ColoredBox(color: c.success),
       ),
-      // Now pill, vertically centred on the regular (non-selected) bar row.
-      // `pillLeft` is pre-clamped by the parent so it never overflows the
-      // strip.
       Positioned(
         left: pillLeft,
-        top: rowTop + (barHeight - 22) / 2,
+        top: 4,
         child: const _NowPill(),
       ),
     ];
   }
+}
+
+/// Paints the colored "tape" — one filled rectangle per session, drawn in
+/// the lower portion of the ruler card so hour labels stay on the muted
+/// background. When a selection exists, unselected fills are dimmed toward
+/// the idle color and the selected fill is outlined in the success color.
+class _TapeFillPainter extends CustomPainter {
+  _TapeFillPainter({
+    required this.segments,
+    required this.start,
+    required this.now,
+    required this.minutesPerPixel,
+    required this.selectedId,
+    required this.idleColor,
+    required this.successColor,
+  });
+
+  final List<TimelineSegment> segments;
+  final DateTime start;
+  final DateTime now;
+  final double minutesPerPixel;
+  final String? selectedId;
+  final Color idleColor;
+  final Color successColor;
+
+  /// Vertical fraction at which the tape starts (top of the band). Above
+  /// this is reserved for hour labels.
+  static const double _bandTopFraction = 0.36;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final yTop = size.height * _bandTopFraction;
+    final yBottom = size.height;
+    final hasSelection = selectedId != null;
+
+    for (final s in segments) {
+      final left = s.startedAt.difference(start).inMinutes / minutesPerPixel;
+      final rightSrc = (s.endedAt ?? now).difference(start).inMinutes /
+          minutesPerPixel;
+      // Skip fully-offscreen on the right; the ScrollView clip handles
+      // off-left culling cheaply enough that we don't bother here.
+      if (rightSrc <= 0) continue;
+      final right = rightSrc;
+      if (right - left <= 0) continue;
+
+      final isSelected = s.id == selectedId;
+      var fill = s.tone ?? idleColor;
+      if (hasSelection && !isSelected) {
+        // Mute non-selected sessions toward the idle color so the focus
+        // sits on the selected one.
+        fill = Color.lerp(fill, idleColor, 0.55) ?? fill;
+      }
+
+      final rect = Rect.fromLTRB(left, yTop, right, yBottom);
+      canvas.drawRect(rect, Paint()..color = fill);
+
+      if (isSelected) {
+        canvas.drawRect(
+          rect.deflate(0.75),
+          Paint()
+            ..color = successColor
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_TapeFillPainter old) =>
+      old.segments != segments ||
+      old.start != start ||
+      old.now != now ||
+      old.minutesPerPixel != minutesPerPixel ||
+      old.selectedId != selectedId ||
+      old.idleColor != idleColor ||
+      old.successColor != successColor;
 }
 
 class _NowPill extends StatelessWidget {
@@ -321,8 +369,8 @@ class _NowPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     return Container(
-      height: 22,
-      width: 48,
+      height: 18,
+      width: 44,
       decoration: BoxDecoration(
         color: c.success,
         borderRadius: AppRadii.pillRadius,
@@ -332,7 +380,7 @@ class _NowPill extends StatelessWidget {
         'Now',
         style: TextStyle(
           fontFamily: 'SF Pro Display',
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
           color: c.background,
         ),
@@ -341,16 +389,16 @@ class _NowPill extends StatelessWidget {
   }
 }
 
-class _LiveDot extends StatefulWidget {
-  const _LiveDot({required this.color});
+class _LivePulse extends StatefulWidget {
+  const _LivePulse({required this.child});
 
-  final Color color;
+  final Widget child;
 
   @override
-  State<_LiveDot> createState() => _LiveDotState();
+  State<_LivePulse> createState() => _LivePulseState();
 }
 
-class _LiveDotState extends State<_LiveDot>
+class _LivePulseState extends State<_LivePulse>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -366,15 +414,8 @@ class _LiveDotState extends State<_LiveDot>
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
-      opacity: Tween<double>(begin: 0.45, end: 1).animate(_controller),
-      child: Container(
-        width: 6,
-        height: 6,
-        decoration: BoxDecoration(
-          color: widget.color,
-          shape: BoxShape.circle,
-        ),
-      ),
+      opacity: Tween<double>(begin: 0.5, end: 1).animate(_controller),
+      child: widget.child,
     );
   }
 }

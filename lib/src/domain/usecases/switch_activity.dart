@@ -17,7 +17,13 @@ class SwitchActivity {
     final current = await _repo.currentSession();
     final nextKind = to ?? (current?.kind.opposite ?? ActivityKind.working);
     if (current != null) {
-      await _repo.endSession(current.id, endedAt: now);
+      // Discard sessions shorter than a minute — they're almost always
+      // accidental taps and clutter the timeline.
+      if (now.difference(current.startedAt) < const Duration(minutes: 1)) {
+        await _repo.deleteSession(current.id);
+      } else {
+        await _repo.endSession(current.id, endedAt: now);
+      }
     }
     return _repo.startSession(
       Session(id: idGenerator, kind: nextKind, startedAt: now),
