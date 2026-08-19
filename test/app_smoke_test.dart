@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthy_hour/src/app.dart';
 import 'package:healthy_hour/src/domain/domain.dart';
-import 'package:healthy_hour/src/flavor.dart';
 
 class _FakeSessionRepo implements SessionRepository {
   Session? _current;
@@ -79,7 +78,6 @@ void main() {
   testWidgets('App boots and shows the Home title', (tester) async {
     await tester.pumpWidget(
       HealthyHourApp(
-        flavor: Flavor.dev,
         sessions: _FakeSessionRepo(),
         settings: _FakeSettingsRepo(),
       ),
