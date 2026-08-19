@@ -103,8 +103,7 @@ class TimelineTrack extends StatelessWidget {
   /// the descending hour ticks (which end roughly at the band's top).
   static const double _emojiCenterFraction = 0.78;
 
-  double _xFor(DateTime at) =>
-      at.difference(start).inMinutes / minutesPerPixel;
+  double _xFor(DateTime at) => at.difference(start).inMinutes / minutesPerPixel;
 
   @override
   Widget build(BuildContext context) {
@@ -192,8 +191,7 @@ class TimelineTrack extends StatelessWidget {
                     // 4. Selection vertical line — anchors the selected
                     //    region's left edge to the eye, doubles as the
                     //    "you tapped here" affordance.
-                    if (selectedId != null)
-                      ..._selectionLine(context),
+                    if (selectedId != null) ..._selectionLine(context),
 
                     // 5. Now marker — vertical line + pill on top of all.
                     if (showNow) ..._buildNowMarker(context, pillLeft),
@@ -243,8 +241,7 @@ class TimelineTrack extends StatelessWidget {
     ];
   }
 
-  Widget _emoji(String e) =>
-      Text(e, style: const TextStyle(fontSize: 14));
+  Widget _emoji(String e) => Text(e, style: const TextStyle(fontSize: 14));
 
   List<Widget> _selectionLine(BuildContext context) {
     final selected = segments.cast<TimelineSegment?>().firstWhere(
@@ -320,8 +317,8 @@ class _TapeFillPainter extends CustomPainter {
 
     for (final s in segments) {
       final left = s.startedAt.difference(start).inMinutes / minutesPerPixel;
-      final rightSrc = (s.endedAt ?? now).difference(start).inMinutes /
-          minutesPerPixel;
+      final rightSrc =
+          (s.endedAt ?? now).difference(start).inMinutes / minutesPerPixel;
       // Skip fully-offscreen on the right; the ScrollView clip handles
       // off-left culling cheaply enough that we don't bother here.
       if (rightSrc <= 0) continue;

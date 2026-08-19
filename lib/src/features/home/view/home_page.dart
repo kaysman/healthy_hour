@@ -305,6 +305,10 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  void _onSwitchActivity() {
+    context.read<HomeBloc>().add(const HomeSwitchActivityRequested());
+  }
+
   Future<void> _onEditSession(Session s) async {
     final picked = await showTimePicker(
       context: context,
@@ -447,11 +451,7 @@ class _HomePageState extends State<HomePage> {
                                       isWalking ? '🧑‍💻' : '👟',
                                       style: const TextStyle(fontSize: 16),
                                     ),
-                                    type: AppButtonType.primary,
-                                    onPressed: () => context
-                                        .read<HomeBloc>()
-                                        .add(
-                                            const HomeSwitchActivityRequested()),
+                                    onPressed: _onSwitchActivity,
                                   ),
                                 ],
                               ),
@@ -485,22 +485,28 @@ class _HomePageState extends State<HomePage> {
                                         session: selected,
                                         now: state.now,
                                         onEdit: () => _onEditSession(selected),
-                                        onDelete: () => context
-                                            .read<HomeBloc>()
-                                            .add(HomeSessionDeleted(
-                                                selected.id)),
+                                        onDelete: () =>
+                                            context.read<HomeBloc>().add(
+                                                  HomeSessionDeleted(
+                                                    selected.id,
+                                                  ),
+                                                ),
                                       ),
                                     )
                                   : const SizedBox.shrink(
-                                      key: ValueKey('actions-none')),
+                                      key: ValueKey('actions-none'),
+                                    ),
                             ),
                             const SizedBox(height: AppSpacing.md),
 
-                            // Embedded interactive timeline. Single-finger drag pans;
-                            // multi-finger pinch zooms continuously around the focal
-                            // point and snaps to the nearest discrete level on release.
-                            // Uses a greedy scale recognizer so the page-level
-                            // vertical scroll can't steal two-finger pinches.
+                            // Embedded interactive timeline.
+                            // Single-finger drag pans; multi-finger
+                            // pinch zooms continuously around the
+                            // focal point and snaps to the nearest
+                            // discrete level on release. Uses a
+                            // greedy scale recognizer so the
+                            // page-level vertical scroll can't steal
+                            // two-finger pinches.
                             RawGestureDetector(
                               behavior: HitTestBehavior.opaque,
                               gestures: <Type, GestureRecognizerFactory>{

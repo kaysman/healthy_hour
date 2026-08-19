@@ -62,11 +62,8 @@ class AppButton extends StatelessWidget {
         height: height,
         child: Material(
           color: _disabled ? c.surfaceMuted : palette.bg,
-          shape: RoundedRectangleBorder(
+          shape: const RoundedRectangleBorder(
             borderRadius: AppRadii.pillRadius,
-            side: palette.border == null
-                ? BorderSide.none
-                : BorderSide(color: palette.border!),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -123,8 +120,7 @@ class AppButton extends StatelessWidget {
 }
 
 class _Palette {
-  const _Palette({required this.bg, required this.fg, this.border});
+  const _Palette({required this.bg, required this.fg});
   final Color bg;
   final Color fg;
-  final Color? border;
 }

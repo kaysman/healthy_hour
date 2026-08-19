@@ -12,6 +12,13 @@ class SessionModel extends HiveObject {
     this.endedAt,
   });
 
+  factory SessionModel.fromEntity(Session s) => SessionModel(
+        id: s.id,
+        kindIndex: s.kind.index,
+        startedAt: s.startedAt,
+        endedAt: s.endedAt,
+      );
+
   @HiveField(0)
   String id;
 
@@ -29,12 +36,5 @@ class SessionModel extends HiveObject {
         kind: ActivityKind.values[kindIndex],
         startedAt: startedAt,
         endedAt: endedAt,
-      );
-
-  static SessionModel fromEntity(Session s) => SessionModel(
-        id: s.id,
-        kindIndex: s.kind.index,
-        startedAt: s.startedAt,
-        endedAt: s.endedAt,
       );
 }
