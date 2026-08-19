@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: analyze · format · test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          channel: stable
+          cache: true
+
+      - name: Install dependencies — app
+        run: flutter pub get
+
+      - name: Install dependencies — healthy_hour_ui_kit
+        run: flutter pub get
+        working-directory: packages/healthy_hour_ui_kit
+
+      - name: Verify formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze
+        run: flutter analyze
+
+      # The root `flutter test` only picks up the app's own suite, so the
+      # design-system package is tested explicitly.
+      - name: Test — app
+        run: flutter test
+
+      - name: Test — healthy_hour_ui_kit
+        run: flutter test
+        working-directory: packages/healthy_hour_ui_kit
