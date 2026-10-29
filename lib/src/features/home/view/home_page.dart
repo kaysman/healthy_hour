@@ -336,7 +336,6 @@ class _HomePageState extends State<HomePage> {
           _onSelectionChanged(state.selectedId, state),
       builder: (context, state) {
         final c = context.colors;
-        final text = Theme.of(context).textTheme;
 
         final isWalking = state.displayKind == ActivityKind.walking;
         final tint = isWalking ? c.walkingTint : c.workingTint;
@@ -420,7 +419,20 @@ class _HomePageState extends State<HomePage> {
                                   const SizedBox(height: AppSpacing.md),
                                   Row(
                                     children: [
-                                      Text('Healthy', style: text.titleLarge),
+                                      Row(
+                                        key: const ValueKey(
+                                          'healthy-hour-brand',
+                                        ),
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Image.asset(
+                                            'assets/brand/healthy_hour_logo.png',
+                                            width: 42,
+                                            height: 42,
+                                            semanticLabel: 'Healthy Hour logo',
+                                          ),
+                                        ],
+                                      ),
                                       const Spacer(),
                                       PillBadge(
                                         label: 'Working Time',
