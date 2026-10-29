@@ -10,6 +10,7 @@ void main() {
       HealthyHourApp(
         sessions: FakeSessionRepository(),
         settings: FakeSettingsRepository(),
+        hydration: FakeHydrationRepository(),
       ),
     );
     await tester.pump();

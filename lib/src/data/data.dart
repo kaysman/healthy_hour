@@ -4,5 +4,6 @@ library;
 
 export 'data_bootstrap.dart';
 export 'models/session_model.dart';
+export 'repositories/hive_hydration_repository.dart';
 export 'repositories/hive_session_repository.dart';
 export 'repositories/hive_settings_repository.dart';

@@ -12,18 +12,22 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   HomeBloc({
     required SessionRepository sessions,
     required SettingsRepository settings,
+    required HydrationRepository hydration,
     required SwitchActivity switchActivity,
     required GetTodaySessions getTodaySessions,
     required UpdateSession updateSession,
     required DeleteSession deleteSession,
+    required LogDrink logDrink,
     required IdGenerator idGenerator,
     Clock? clock,
   })  : _sessions = sessions,
         _settings = settings,
+        _hydration = hydration,
         _switchActivity = switchActivity,
         _getTodaySessions = getTodaySessions,
         _updateSession = updateSession,
         _deleteSession = deleteSession,
+        _logDrink = logDrink,
         _idGenerator = idGenerator,
         _clock = clock ?? DateTime.now,
         super(const HomeState()) {
@@ -33,6 +37,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<HomeSessionSelected>(_onSessionSelected);
     on<HomeSessionEdited>(_onSessionEdited);
     on<HomeSessionDeleted>(_onSessionDeleted);
+    on<HomeDrinkLogged>(_onDrinkLogged);
     on<HomeDataLoaded>(
       (e, emit) => emit(
         state.copyWith(
@@ -49,14 +54,24 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<HomeWalkingChanged>(
       (e, emit) => emit(state.copyWith(walking: e.config)),
     );
+    on<HomeLastDrinkChanged>(
+      (e, emit) => emit(
+        state.copyWith(
+          lastDrinkAt: e.at,
+          clearLastDrink: e.at == null,
+        ),
+      ),
+    );
   }
 
   final SessionRepository _sessions;
   final SettingsRepository _settings;
+  final HydrationRepository _hydration;
   final SwitchActivity _switchActivity;
   final GetTodaySessions _getTodaySessions;
   final UpdateSession _updateSession;
   final DeleteSession _deleteSession;
+  final LogDrink _logDrink;
   final IdGenerator _idGenerator;
   final Clock _clock;
 
@@ -64,6 +79,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   StreamSubscription<WorkingWindow>? _windowSub;
   StreamSubscription<TimerConfig>? _waterSub;
   StreamSubscription<TimerConfig>? _walkingSub;
+  StreamSubscription<DateTime?>? _lastDrinkSub;
   Timer? _ticker;
 
   Future<void> _onStarted(HomeStarted e, Emitter<HomeState> emit) async {
@@ -88,6 +104,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         .watchWalkingConfig()
         .listen((c) => add(HomeWalkingChanged(c)));
 
+    await _lastDrinkSub?.cancel();
+    _lastDrinkSub = _hydration
+        .watchLastDrink()
+        .listen((at) => add(HomeLastDrinkChanged(at)));
+
     _ticker?.cancel();
     _ticker = Timer.periodic(
       const Duration(seconds: 1),
@@ -103,7 +124,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     HomeSwitchActivityRequested e,
     Emitter<HomeState> emit,
   ) async {
-    await _switchActivity(now: _clock(), idGenerator: _idGenerator());
+    await _switchActivity(
+      now: _clock(),
+      idGenerator: _idGenerator(),
+      to: e.to,
+    );
     final current = await _sessions.currentSession();
     emit(state.copyWith(current: current, clearCurrent: current == null));
   }
@@ -129,6 +154,13 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     }
   }
 
+  Future<void> _onDrinkLogged(
+    HomeDrinkLogged e,
+    Emitter<HomeState> emit,
+  ) async {
+    await _logDrink(now: _clock());
+  }
+
   @override
   Future<void> close() async {
     _ticker?.cancel();
@@ -136,6 +168,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     await _windowSub?.cancel();
     await _waterSub?.cancel();
     await _walkingSub?.cancel();
+    await _lastDrinkSub?.cancel();
     return super.close();
   }
 }
@@ -171,4 +204,12 @@ final class HomeWalkingChanged extends HomeEvent {
 
   @override
   List<Object?> get props => [config];
+}
+
+final class HomeLastDrinkChanged extends HomeEvent {
+  const HomeLastDrinkChanged(this.at);
+  final DateTime? at;
+
+  @override
+  List<Object?> get props => [at];
 }

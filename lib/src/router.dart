@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 GoRouter buildRouter({
   required SessionRepository sessions,
   required SettingsRepository settings,
+  required HydrationRepository hydration,
 }) {
   const uuid = Uuid();
   return GoRouter(
@@ -19,14 +20,18 @@ GoRouter buildRouter({
           create: (_) => HomeBloc(
             sessions: sessions,
             settings: settings,
+            hydration: hydration,
             switchActivity: SwitchActivity(sessions),
             getTodaySessions: GetTodaySessions(sessions),
             updateSession: UpdateSession(sessions),
             deleteSession: DeleteSession(sessions),
+            logDrink: LogDrink(hydration),
             idGenerator: uuid.v4,
           )..add(const HomeStarted()),
           child: HomePage(
             onOpenSettings: () => context.go('/settings'),
+            onOpenWaterConfig: () => context.go('/settings'),
+            onOpenWalkingConfig: () => context.go('/settings'),
           ),
         ),
       ),

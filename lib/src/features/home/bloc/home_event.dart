@@ -20,8 +20,14 @@ final class HomeTicked extends HomeEvent {
   List<Object?> get props => [now];
 }
 
+/// End the current session and start the next. Toggles kind unless [to] is
+/// given.
 final class HomeSwitchActivityRequested extends HomeEvent {
-  const HomeSwitchActivityRequested();
+  const HomeSwitchActivityRequested({this.to});
+  final ActivityKind? to;
+
+  @override
+  List<Object?> get props => [to];
 }
 
 /// User tapped a session bar on the embedded timeline. `null` to clear.
@@ -49,4 +55,9 @@ final class HomeSessionDeleted extends HomeEvent {
 
   @override
   List<Object?> get props => [id];
+}
+
+/// User tapped `+` on the Water card: log a drink now.
+final class HomeDrinkLogged extends HomeEvent {
+  const HomeDrinkLogged();
 }

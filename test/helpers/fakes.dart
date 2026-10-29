@@ -114,6 +114,23 @@ class FakeSettingsRepository implements SettingsRepository {
       _walking.add(config);
 }
 
+/// In-memory [HydrationRepository].
+class FakeHydrationRepository implements HydrationRepository {
+  FakeHydrationRepository([DateTime? lastDrinkAt])
+      : _lastDrink = BehaviorSubject.seeded(lastDrinkAt);
+
+  final BehaviorSubject<DateTime?> _lastDrink;
+
+  /// The last drink logged, read synchronously.
+  DateTime? get lastDrinkAt => _lastDrink.value;
+
+  @override
+  Stream<DateTime?> watchLastDrink() => _lastDrink.stream;
+
+  @override
+  Future<void> logDrink(DateTime at) async => _lastDrink.add(at);
+}
+
 /// Hands out `id-1`, `id-2`, … so tests can assert on generated ids.
 class SequentialIds {
   int _next = 1;

@@ -7,15 +7,21 @@ class HealthyHourApp extends StatelessWidget {
   const HealthyHourApp({
     required this.sessions,
     required this.settings,
+    required this.hydration,
     super.key,
   });
 
   final SessionRepository sessions;
   final SettingsRepository settings;
+  final HydrationRepository hydration;
 
   @override
   Widget build(BuildContext context) {
-    final router = buildRouter(sessions: sessions, settings: settings);
+    final router = buildRouter(
+      sessions: sessions,
+      settings: settings,
+      hydration: hydration,
+    );
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Healthy Hour',

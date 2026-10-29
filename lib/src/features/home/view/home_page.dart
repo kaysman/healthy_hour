@@ -20,16 +20,12 @@ class HomePage extends StatefulWidget {
     super.key,
     this.onOpenSettings,
     this.onOpenWaterConfig,
-    this.onAddWater,
     this.onOpenWalkingConfig,
-    this.onAddWalking,
   });
 
   final VoidCallback? onOpenSettings;
   final VoidCallback? onOpenWaterConfig;
-  final VoidCallback? onAddWater;
   final VoidCallback? onOpenWalkingConfig;
-  final VoidCallback? onAddWalking;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -309,6 +305,16 @@ class _HomePageState extends State<HomePage> {
     context.read<HomeBloc>().add(const HomeSwitchActivityRequested());
   }
 
+  void _onStartWalk() {
+    context
+        .read<HomeBloc>()
+        .add(const HomeSwitchActivityRequested(to: ActivityKind.walking));
+  }
+
+  void _onLogDrink() {
+    context.read<HomeBloc>().add(const HomeDrinkLogged());
+  }
+
   Future<void> _onEditSession(Session s) async {
     final picked = await showTimePicker(
       context: context,
@@ -579,9 +585,9 @@ class _HomePageState extends State<HomePage> {
                                   Expanded(
                                     child: ActivityCard(
                                       onConfigure: widget.onOpenWaterConfig,
-                                      onAdd: widget.onAddWater,
+                                      onAdd: _onLogDrink,
                                       body: CircularTimer(
-                                        remaining: state.water.interval,
+                                        remaining: state.waterRemaining,
                                         total: state.water.interval,
                                         label: 'Water',
                                         ringColor: c.water,
@@ -596,9 +602,11 @@ class _HomePageState extends State<HomePage> {
                                   Expanded(
                                     child: ActivityCard(
                                       onConfigure: widget.onOpenWalkingConfig,
-                                      onAdd: widget.onAddWalking,
+                                      // `+` starts a walk; already walking,
+                                      // there's nothing to add.
+                                      onAdd: isWalking ? null : _onStartWalk,
                                       body: CircularTimer(
-                                        remaining: state.walking.interval,
+                                        remaining: state.walkingRemaining,
                                         total: state.walking.interval,
                                         label: 'Walking',
                                         ringColor: c.walking,

@@ -18,6 +18,14 @@ class WorkingWindow extends Equatable {
 
   Duration get length => Duration(minutes: endMinutes - startMinutes);
 
+  /// The moment the window opens on [day]'s calendar date.
+  DateTime startOn(DateTime day) =>
+      DateTime(day.year, day.month, day.day, 0, startMinutes);
+
+  /// The moment the window closes on [day]'s calendar date.
+  DateTime endOn(DateTime day) =>
+      DateTime(day.year, day.month, day.day, 0, endMinutes);
+
   WorkingWindow copyWith({int? startMinutes, int? endMinutes}) {
     return WorkingWindow(
       startMinutes: startMinutes ?? this.startMinutes,

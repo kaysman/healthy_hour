@@ -1,4 +1,5 @@
 import 'package:healthy_hour/src/data/models/session_model.dart';
+import 'package:healthy_hour/src/data/repositories/hive_hydration_repository.dart';
 import 'package:healthy_hour/src/data/repositories/hive_session_repository.dart';
 import 'package:healthy_hour/src/data/repositories/hive_settings_repository.dart';
 import 'package:hive_ce_flutter/hive_flutter.dart';
@@ -7,10 +8,12 @@ class DataBootstrap {
   const DataBootstrap({
     required this.sessions,
     required this.settings,
+    required this.hydration,
   });
 
   final HiveSessionRepository sessions;
   final HiveSettingsRepository settings;
+  final HiveHydrationRepository hydration;
 
   static Future<DataBootstrap> initialize() async {
     await Hive.initFlutter('healthy_hour');
@@ -22,6 +25,7 @@ class DataBootstrap {
     return DataBootstrap(
       sessions: HiveSessionRepository(sessionsBox),
       settings: HiveSettingsRepository(settingsBox),
+      hydration: HiveHydrationRepository(settingsBox),
     );
   }
 }

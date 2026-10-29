@@ -12,6 +12,7 @@ class HomeState extends Equatable {
     this.water = TimerConfig.water,
     this.walking = TimerConfig.walking,
     this.selectedId,
+    this.lastDrinkAt,
     DateTime? now,
   }) : _now = now;
 
@@ -25,6 +26,9 @@ class HomeState extends Equatable {
   /// Currently selected session on the embedded timeline. `null` means
   /// nothing is selected (the floating actions card is hidden).
   final String? selectedId;
+
+  /// The last logged drink; `null` if none has been logged yet.
+  final DateTime? lastDrinkAt;
   final DateTime? _now;
 
   DateTime get now => _now ?? DateTime.now();
@@ -32,6 +36,26 @@ class HomeState extends Equatable {
   ActivityKind get displayKind => current?.kind ?? ActivityKind.working;
 
   Duration get currentDuration => current?.durationAt(now) ?? Duration.zero;
+
+  /// Time left until the next drink. Derived, like [currentDuration], from a
+  /// stored timestamp and [now] — never counted down.
+  Duration get waterRemaining => remainingOf(
+        water.interval,
+        start: waterCountdownStart(
+          now: now,
+          window: workingWindow,
+          lastDrinkAt: lastDrinkAt,
+        ),
+        now: now,
+      );
+
+  /// Time left in the current Working session before a walk is due. Holds at
+  /// the full interval while walking or idle.
+  Duration get walkingRemaining {
+    final start = walkingCountdownStart(current);
+    if (start == null) return walking.interval;
+    return remainingOf(walking.interval, start: start, now: now);
+  }
 
   /// The session currently selected on the timeline, if any. Computed by
   /// looking [selectedId] up against [todaysSessions].
@@ -53,6 +77,8 @@ class HomeState extends Equatable {
     TimerConfig? walking,
     String? selectedId,
     bool clearSelection = false,
+    DateTime? lastDrinkAt,
+    bool clearLastDrink = false,
     DateTime? now,
   }) {
     return HomeState(
@@ -63,6 +89,7 @@ class HomeState extends Equatable {
       water: water ?? this.water,
       walking: walking ?? this.walking,
       selectedId: clearSelection ? null : (selectedId ?? this.selectedId),
+      lastDrinkAt: clearLastDrink ? null : (lastDrinkAt ?? this.lastDrinkAt),
       now: now ?? _now,
     );
   }
@@ -76,6 +103,7 @@ class HomeState extends Equatable {
         water,
         walking,
         selectedId,
+        lastDrinkAt,
         _now,
       ];
 }

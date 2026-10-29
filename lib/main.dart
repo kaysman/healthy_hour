@@ -22,6 +22,7 @@ void main() {
         HealthyHourApp(
           sessions: data.sessions,
           settings: data.settings,
+          hydration: data.hydration,
         ),
       );
     },

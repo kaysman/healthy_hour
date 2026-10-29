@@ -11,14 +11,17 @@ void main() {
 
   late FakeSessionRepository sessions;
   late FakeSettingsRepository settings;
+  late FakeHydrationRepository hydration;
 
   HomeBloc buildBloc({Clock? clock}) => HomeBloc(
         sessions: sessions,
         settings: settings,
+        hydration: hydration,
         switchActivity: SwitchActivity(sessions),
         getTodaySessions: GetTodaySessions(sessions),
         updateSession: UpdateSession(sessions),
         deleteSession: DeleteSession(sessions),
+        logDrink: LogDrink(hydration),
         idGenerator: SequentialIds().call,
         clock: clock ?? () => now,
       );
@@ -38,6 +41,7 @@ void main() {
   setUp(() {
     sessions = FakeSessionRepository();
     settings = FakeSettingsRepository();
+    hydration = FakeHydrationRepository();
   });
 
   group('HomeStarted', () {
@@ -153,6 +157,17 @@ void main() {
 
   group('HomeSwitchActivityRequested', () {
     blocTest<HomeBloc, HomeState>(
+      'an explicit target starts a walk even with nothing running',
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const HomeStarted());
+        await pumpEventQueue();
+        bloc.add(const HomeSwitchActivityRequested(to: ActivityKind.walking));
+      },
+      verify: (bloc) => expect(bloc.state.current?.kind, ActivityKind.walking),
+    );
+
+    blocTest<HomeBloc, HomeState>(
       'starts working when nothing is running',
       build: buildBloc,
       act: (bloc) async {
@@ -180,6 +195,22 @@ void main() {
         expect(bloc.state.displayKind, ActivityKind.walking);
         expect(bloc.state.todaysSessions.first.endedAt, now);
         expect(bloc.state.todaysSessions, hasLength(2));
+      },
+    );
+  });
+
+  group('HomeDrinkLogged', () {
+    blocTest<HomeBloc, HomeState>(
+      'logs a drink at the clock time and resets the water countdown',
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const HomeStarted());
+        await pumpEventQueue();
+        bloc.add(const HomeDrinkLogged());
+      },
+      verify: (bloc) {
+        expect(bloc.state.lastDrinkAt, now);
+        expect(bloc.state.waterRemaining, bloc.state.water.interval);
       },
     );
   });
