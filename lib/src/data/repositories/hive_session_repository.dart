@@ -6,14 +6,16 @@ import 'package:hive_ce/hive.dart';
 import 'package:rxdart/rxdart.dart';
 
 class HiveSessionRepository implements SessionRepository {
-  HiveSessionRepository(this._box);
+  HiveSessionRepository(this._box) {
+    _subject = BehaviorSubject.seeded(_snapshot());
+    // A plain subscription rather than `addStream`: `box.watch()` never
+    // completes, and a subject can't be closed mid-`addStream`.
+    _changes = _box.watch().listen((_) => _subject.add(_snapshot()));
+  }
 
   final Box<SessionModel> _box;
-
-  late final BehaviorSubject<List<Session>> _subject =
-      BehaviorSubject.seeded(_snapshot())..addStream(_changes());
-
-  Stream<List<Session>> _changes() => _box.watch().map((_) => _snapshot());
+  late final BehaviorSubject<List<Session>> _subject;
+  late final StreamSubscription<BoxEvent> _changes;
 
   List<Session> _snapshot() {
     final list = _box.values.map((m) => m.toEntity()).toList()
@@ -69,6 +71,7 @@ class HiveSessionRepository implements SessionRepository {
   Future<void> deleteSession(String id) => _box.delete(id);
 
   Future<void> close() async {
+    await _changes.cancel();
     await _subject.close();
   }
 }
