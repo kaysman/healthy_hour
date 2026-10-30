@@ -10,9 +10,16 @@ while the app is closed.
 Bloc + Hive, feature-first folders inside `lib/`, with a single shared
 package for the design system.
 
-> **Status:** built in the open. Sessions, live countdowns and reminders
-> work end to end; it is not on any store and has no sync.
+> **Status:** v1.0.0, built in the open. Sessions, live countdowns and
+> reminders work end to end; it is not on any store and has no sync.
 > [What's done and what isn't](#status).
+
+## Install
+
+Android: download `app-release.apk` from the
+[latest release](https://github.com/kaysman/healthy_hour/releases/latest)
+and open it on the phone (allow installs from your browser or file manager
+when Android asks). There is no iOS build; on iOS, run it from source.
 
 ## Screens
 
@@ -247,7 +254,8 @@ Not there yet:
 - **No sync, no accounts.** Everything is on-device. An Express + Prisma +
   Postgres service — JWT auth, session CRUD, settings — is written but is
   not wired to the app or published yet.
-- Not on any store.
+- **Not on any store.** Android ships as a signed APK on GitHub Releases;
+  there is no iOS build.
 
 ## Code generation
 
