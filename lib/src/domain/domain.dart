@@ -3,6 +3,7 @@ library;
 
 export 'entities/activity_kind.dart';
 export 'entities/countdowns.dart';
+export 'entities/healthy_hour.dart';
 export 'entities/reminder.dart';
 export 'entities/session.dart';
 export 'entities/timer_config.dart';
@@ -15,6 +16,8 @@ export 'usecases/delete_session.dart';
 export 'usecases/get_today_sessions.dart';
 export 'usecases/log_drink.dart';
 export 'usecases/plan_reminders.dart';
+export 'usecases/remove_drink.dart';
 export 'usecases/start_session.dart';
 export 'usecases/switch_activity.dart';
+export 'usecases/undo_switch_activity.dart';
 export 'usecases/update_session.dart';

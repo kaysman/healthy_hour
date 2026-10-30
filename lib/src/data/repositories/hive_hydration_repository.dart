@@ -4,32 +4,74 @@ import 'package:healthy_hour/src/domain/domain.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:rxdart/rxdart.dart';
 
-/// Stores the last drink as epoch milliseconds in the settings box, next to
-/// the intervals it is measured against.
+/// Stores drinks as a list of epoch milliseconds in the settings box, next to
+/// the intervals they are measured against.
+///
+/// Only the last two days are kept: Home shows today, and nothing reads
+/// further back, so the list never grows past a couple of dozen entries.
 class HiveHydrationRepository implements HydrationRepository {
-  HiveHydrationRepository(this._box) {
+  HiveHydrationRepository(this._box, {DateTime Function()? clock})
+      : _clock = clock ?? DateTime.now {
     _subject = BehaviorSubject.seeded(_read());
-    _changes =
-        _box.watch(key: _kLastDrink).listen((_) => _subject.add(_read()));
+    _changes = _box
+        .watch()
+        .where((e) => e.key == _kDrinkLog || e.key == _kLegacyLastDrink)
+        .listen((_) => _subject.add(_read()));
   }
 
   final Box<dynamic> _box;
-  late final BehaviorSubject<DateTime?> _subject;
+  final DateTime Function() _clock;
+  late final BehaviorSubject<List<DateTime>> _subject;
   late final StreamSubscription<BoxEvent> _changes;
 
-  static const _kLastDrink = 'last_drink_at_ms';
+  static const _kDrinkLog = 'drink_log_ms';
 
-  DateTime? _read() {
-    final ms = _box.get(_kLastDrink) as int?;
-    return ms == null ? null : DateTime.fromMillisecondsSinceEpoch(ms);
+  /// Before the log existed only the last drink was stored, under this key.
+  /// It is read as a one-entry log and folded into the real one on the next
+  /// write.
+  static const _kLegacyLastDrink = 'last_drink_at_ms';
+
+  static const _retention = Duration(days: 2);
+
+  List<DateTime> _read() {
+    final log = (_box.get(_kDrinkLog) as List?)?.cast<int>();
+    final legacy = _box.get(_kLegacyLastDrink) as int?;
+    // A set, because between the two writes in [_write] the legacy drink
+    // sits in both places for one box event.
+    return {
+      if (legacy != null) legacy,
+      ...?log,
+    }.map(DateTime.fromMillisecondsSinceEpoch).toList()
+      ..sort();
+  }
+
+  Future<void> _write(List<DateTime> drinks) async {
+    final cutoff = _clock().subtract(_retention);
+    await _box.put(_kDrinkLog, [
+      for (final d in drinks)
+        if (!d.isBefore(cutoff)) d.millisecondsSinceEpoch,
+    ]);
+    await _box.delete(_kLegacyLastDrink);
   }
 
   @override
-  Stream<DateTime?> watchLastDrink() => _subject.stream;
+  Stream<DateTime?> watchLastDrink() =>
+      _subject.stream.map((all) => all.isEmpty ? null : all.last).distinct();
 
   @override
-  Future<void> logDrink(DateTime at) =>
-      _box.put(_kLastDrink, at.millisecondsSinceEpoch);
+  Stream<List<DateTime>> watchDrinks({DateTime? from}) => _subject.stream.map(
+        (all) => [
+          for (final d in all)
+            if (from == null || !d.isBefore(from)) d,
+        ],
+      );
+
+  @override
+  Future<void> logDrink(DateTime at) => _write([..._subject.value, at]);
+
+  @override
+  Future<void> removeDrink(DateTime at) =>
+      _write([..._subject.value]..remove(at));
 
   Future<void> close() async {
     await _changes.cancel();

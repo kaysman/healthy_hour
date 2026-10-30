@@ -57,8 +57,11 @@ class FakeSessionRepository implements SessionRepository {
 
   @override
   Future<Session> updateSession(Session session) async {
-    final i = _sessions.indexWhere((s) => s.id == session.id);
-    if (i >= 0) _sessions[i] = session;
+    // An upsert, like Hive's `put`: undoing a switch writes back a session
+    // the switch may have deleted.
+    _sessions
+      ..removeWhere((s) => s.id == session.id)
+      ..add(session);
     _emit();
     return session;
   }
@@ -114,21 +117,38 @@ class FakeSettingsRepository implements SettingsRepository {
       _walking.add(config);
 }
 
-/// In-memory [HydrationRepository].
+/// In-memory [HydrationRepository]: a sorted log of drinks.
 class FakeHydrationRepository implements HydrationRepository {
-  FakeHydrationRepository([DateTime? lastDrinkAt])
-      : _lastDrink = BehaviorSubject.seeded(lastDrinkAt);
+  FakeHydrationRepository([List<DateTime> drinks = const []])
+      : _drinks = BehaviorSubject.seeded([...drinks]..sort());
 
-  final BehaviorSubject<DateTime?> _lastDrink;
+  final BehaviorSubject<List<DateTime>> _drinks;
+
+  /// Every drink logged, oldest first, read synchronously.
+  List<DateTime> get drinks => _drinks.value;
 
   /// The last drink logged, read synchronously.
-  DateTime? get lastDrinkAt => _lastDrink.value;
+  DateTime? get lastDrinkAt => drinks.isEmpty ? null : drinks.last;
 
   @override
-  Stream<DateTime?> watchLastDrink() => _lastDrink.stream;
+  Stream<DateTime?> watchLastDrink() =>
+      _drinks.stream.map((all) => all.isEmpty ? null : all.last).distinct();
 
   @override
-  Future<void> logDrink(DateTime at) async => _lastDrink.add(at);
+  Stream<List<DateTime>> watchDrinks({DateTime? from}) => _drinks.stream.map(
+        (all) => [
+          for (final d in all)
+            if (from == null || !d.isBefore(from)) d,
+        ],
+      );
+
+  @override
+  Future<void> logDrink(DateTime at) async =>
+      _drinks.add([...drinks, at]..sort());
+
+  @override
+  Future<void> removeDrink(DateTime at) async =>
+      _drinks.add([...drinks]..remove(at));
 }
 
 /// Hands out `id-1`, `id-2`, … so tests can assert on generated ids.
