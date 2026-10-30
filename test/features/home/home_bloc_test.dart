@@ -1,6 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:healthy_hour/src/core/core.dart';
 import 'package:healthy_hour/src/domain/domain.dart';
 import 'package:healthy_hour/src/features/home/home.dart';
 

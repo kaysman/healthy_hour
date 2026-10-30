@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:healthy_hour/src/core/core.dart';
 import 'package:healthy_hour/src/domain/domain.dart';
 import 'package:healthy_hour/src/features/home/bloc/home_event.dart';
 import 'package:healthy_hour/src/features/home/bloc/home_state.dart';
 
 typedef IdGenerator = String Function();
-typedef Clock = DateTime Function();
 
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
   HomeBloc({
