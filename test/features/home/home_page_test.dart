@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthy_hour/src/app.dart';
 import 'package:healthy_hour/src/domain/domain.dart';
+import 'package:healthy_hour/src/features/activity/activity.dart';
+import 'package:healthy_hour_ui_kit/healthy_hour_ui_kit.dart';
 
 import '../../helpers/fakes.dart';
 
@@ -74,5 +76,34 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     expect(find.byKey(const ValueKey('healthy-hour-brand')), findsOneWidget);
+  });
+
+  testWidgets('Settings is tinted by the current activity', (tester) async {
+    await pumpHome(
+      tester,
+      sessions: FakeSessionRepository([
+        Session(
+          id: 'k',
+          kind: ActivityKind.walking,
+          startedAt: DateTime.now().subtract(const Duration(minutes: 5)),
+        ),
+      ]),
+      hydration: FakeHydrationRepository(),
+    );
+
+    await tester.tap(find.text('Working Time'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    final backdrop = find.ancestor(
+      of: find.text('Adjust'),
+      matching: find.byType(ActivityBackdrop),
+    );
+    final box = tester.widget<DecoratedBox>(
+      find.descendant(of: backdrop, matching: find.byType(DecoratedBox)).first,
+    );
+    final gradient = (box.decoration as BoxDecoration).gradient!;
+    final colors = tester.element(backdrop).colors;
+    expect(gradient.colors.first, colors.walkingTint);
   });
 }

@@ -46,4 +46,29 @@ void main() {
       expect(ActivityKind.walking.opposite, ActivityKind.working);
     });
   });
+
+  group('ongoing', () {
+    test('is the latest session without endedAt', () {
+      final sessions = [
+        Session(id: 'old', kind: ActivityKind.working, startedAt: start),
+        Session(
+          id: 'new',
+          kind: ActivityKind.walking,
+          startedAt: start.add(const Duration(hours: 1)),
+        ),
+        Session(
+          id: 'ended',
+          kind: ActivityKind.working,
+          startedAt: start.add(const Duration(hours: 2)),
+          endedAt: start.add(const Duration(hours: 3)),
+        ),
+      ];
+
+      expect(sessions.ongoing?.id, 'new');
+    });
+
+    test('is null when everything has ended', () {
+      expect(<Session>[].ongoing, isNull);
+    });
+  });
 }

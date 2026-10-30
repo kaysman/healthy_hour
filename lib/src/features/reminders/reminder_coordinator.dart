@@ -35,7 +35,7 @@ class ReminderCoordinator {
 
   void start() {
     _sub ??= Rx.combineLatest5(
-      _sessions.watchSessions().map(_ongoing),
+      _sessions.watchSessions().map((all) => all.ongoing),
       _settings.watchWorkingWindow(),
       _settings.watchWaterConfig(),
       _settings.watchWalkingConfig(),
@@ -59,16 +59,5 @@ class ReminderCoordinator {
   Future<void> stop() async {
     await _sub?.cancel();
     _sub = null;
-  }
-
-  static Session? _ongoing(List<Session> sessions) {
-    Session? latest;
-    for (final s in sessions) {
-      if (s.isOngoing &&
-          (latest == null || s.startedAt.isAfter(latest.startedAt))) {
-        latest = s;
-      }
-    }
-    return latest;
   }
 }

@@ -126,6 +126,7 @@ healthy_hour/
 │     ├─ domain/                  # pure-Dart entities, repos, use-cases, reminder planner
 │     ├─ data/                    # Hive repositories + local-notification scheduler
 │     └─ features/
+│        ├─ activity/             # ActivityCubit + ActivityBackdrop: the Working/Walking tint on every screen
 │        ├─ home/                 # HomeBloc + HomePage + widgets (incl. embedded timeline)
 │        ├─ reminders/            # ReminderCoordinator: data changes → new schedule
 │        └─ settings/             # SettingsBloc + SettingsPage
@@ -176,17 +177,18 @@ cd packages/healthy_hour_ui_kit && flutter test
 
 ### What the tests cover
 
-79 tests in the app, laid out to mirror `lib/src/`:
+84 tests in the app, laid out to mirror `lib/src/`:
 
-- **Domain (36)** — session durations, the countdown rules, the
+- **Domain (38)** — session durations, the countdown rules, the
   switch/start use-cases (including discarding sub-minute sessions), and
   the reminder planner: window edges, the next-day roll-over, the iOS cap,
   zero intervals.
-- **Features (36)** — `HomeBloc` and `SettingsBloc` with `bloc_test` and a
-  fixed `Clock`; the ring math on `HomeState`; the one-second ticker under
-  `fakeAsync`; `ReminderCoordinator` against a recording scheduler; widget
-  tests that tap the Water and Walking `+` buttons and the Settings back
-  button on the real Home page.
+- **Features (39)** — `HomeBloc`, `SettingsBloc` and `ActivityCubit` with
+  `bloc_test` and a fixed `Clock`; the ring math on `HomeState`; the
+  one-second ticker under `fakeAsync`; `ReminderCoordinator` against a
+  recording scheduler; widget tests that tap the Water and Walking `+`
+  buttons, open Settings and come back, and check Settings takes the
+  Walking tint.
 - **Data (6)** — the Hive repositories against a real box in a temp dir.
 
 No test waits in real time.
@@ -204,7 +206,7 @@ Working:
 - Local persistence through Hive, with the domain layer kept pure Dart.
 - Design system extracted to `packages/healthy_hour_ui_kit`.
 - Light and dark themes.
-- `flutter analyze` clean under `very_good_analysis`; 79 app tests in CI.
+- `flutter analyze` clean under `very_good_analysis`; 84 app tests in CI.
 
 Not there yet:
 

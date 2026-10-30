@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:healthy_hour/src/domain/domain.dart';
+import 'package:healthy_hour/src/features/activity/activity.dart';
 import 'package:healthy_hour/src/features/home/bloc/home_bloc.dart';
 import 'package:healthy_hour/src/features/home/bloc/home_event.dart';
 import 'package:healthy_hour/src/features/home/bloc/home_state.dart';
@@ -344,24 +345,13 @@ class _HomePageState extends State<HomePage> {
         final c = context.colors;
 
         final isWalking = state.displayKind == ActivityKind.walking;
-        final tint = isWalking ? c.walkingTint : c.workingTint;
         final selected = state.selected;
         final showActions = selected != null && _showActions;
 
-        return Scaffold(
-          // Gradient lives in the Scaffold body so it covers the full screen;
-          // Scaffold provides the Material ancestor needed for text rendering.
-          backgroundColor: Colors.transparent,
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [tint, c.background],
-                stops: const [0, 0.55],
-              ),
-            ),
-            child: SafeArea(
+        return ActivityBackdrop(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: SafeArea(
               // Outer LayoutBuilder gives us the viewport width once so the
               // timeline section can derive minutesPerPixel without an inner
               // LayoutBuilder (which doesn't play well with IntrinsicHeight).
