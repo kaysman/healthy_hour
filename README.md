@@ -4,14 +4,15 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A Flutter app for **Healthy Hour** — alternates between Working and Walking
-sessions and reminds you to drink water.
+sessions and reminds you to drink water and to get up and walk, including
+while the app is closed.
 
 Bloc + Hive, feature-first folders inside `lib/`, with a single shared
 package for the design system.
 
-> **Status:** work in progress, built in the open. The app runs and the
-> screens below are real, but it has never been released and it does not
-> notify you yet. [What's done and what isn't](#status).
+> **Status:** built in the open. Sessions, live countdowns and reminders
+> work end to end; it is not on any store and has no sync.
+> [What's done and what isn't](#status).
 
 ## Screens
 
@@ -36,10 +37,13 @@ in the top-right.
 ### Settings — `/settings`
 
 - **Working window** — start / end time chips; tap to open a `TimePicker`.
-- **Water reminder** — interval slider, 5–90 minutes, drives the Water
-  ring on Home.
-- **Walking reminder** — interval slider, same range, drives the
-  Walking ring on Home.
+- **Water reminder** — interval slider, 5–90 minutes. Drives the Water
+  ring on Home and the water notifications.
+- **Walking reminder** — interval slider, same range. Drives the Walking
+  ring on Home and the walking notifications.
+
+On Home, the `+` on the Water card logs a drink and restarts that
+countdown; the `+` on the Walking card starts a walk.
 
 ## How the timer works
 
@@ -76,6 +80,38 @@ ordinary edits rather than surgery on accumulated state.
 `HomeBloc` also takes an injectable `Clock`, which is what makes any of this
 testable without waiting in real time.
 
+The Water and Walking rings follow the same rule. Water counts down from
+the last logged drink (never from before today's working window opens, so
+each day starts full); Walking counts down from the start of the current
+Working session. Both are `interval − (now − anchor)`, computed per tick.
+
+## How reminders work
+
+Notifications are planned from the same timestamps, so what the phone
+says and what Home shows cannot disagree.
+
+- **A pure planner.** `planReminders` in `domain/usecases/` takes `now`,
+  the current session, the last drink, the working window and the two
+  intervals, and returns every reminder due from now on. No Flutter, no
+  plugin — it is plain Dart and has the largest test file in the repo.
+- **Replace, don't diff.** `ReminderCoordinator` watches the session,
+  settings and hydration streams. Whenever any of them changes it
+  recomputes the whole plan and the scheduler cancels everything pending
+  and schedules the new plan. There is no background job and no stored
+  schedule to fall out of sync; the OS just holds the latest plan.
+- **Only inside the working window**, and water also covers tomorrow's
+  window, so the next morning gets reminders without opening the app.
+  The plan is capped at 60 entries because iOS keeps at most 64 pending
+  local notifications and silently drops the rest.
+- **Inexact on purpose.** Android delivery uses
+  `inexactAllowWhileIdle`. Exact alarms need `SCHEDULE_EXACT_ALARM`,
+  which Android 14 denies by default and Play restricts to alarm and
+  calendar apps; a water reminder a minute late costs nothing.
+
+The plugin (`flutter_local_notifications`) sits behind a domain
+`ReminderScheduler` interface, so the planner and coordinator are tested
+against a fake that records what would have been scheduled.
+
 ## Layout
 
 ```
@@ -87,12 +123,13 @@ healthy_hour/
 │  └─ src/
 │     ├─ app.dart, app_observer.dart, router.dart
 │     ├─ core/                    # DateTime/Duration extensions, typedefs
-│     ├─ domain/                  # pure-Dart entities, repos, use-cases
-│     ├─ data/                    # Hive-backed repository implementations
+│     ├─ domain/                  # pure-Dart entities, repos, use-cases, reminder planner
+│     ├─ data/                    # Hive repositories + local-notification scheduler
 │     └─ features/
 │        ├─ home/                 # HomeBloc + HomePage + widgets (incl. embedded timeline)
+│        ├─ reminders/            # ReminderCoordinator: data changes → new schedule
 │        └─ settings/             # SettingsBloc + SettingsPage
-├─ test/
+├─ test/                          # mirrors lib/src: domain, data, features
 ├─ packages/
 │  └─ healthy_hour_ui_kit/        # design system: theme, icons, widgets, DurationFormatter
 ├─ pubspec.yaml
@@ -137,29 +174,47 @@ flutter test
 cd packages/healthy_hour_ui_kit && flutter test
 ```
 
+### What the tests cover
+
+78 tests in the app, laid out to mirror `lib/src/`:
+
+- **Domain (36)** — session durations, the countdown rules, the
+  switch/start use-cases (including discarding sub-minute sessions), and
+  the reminder planner: window edges, the next-day roll-over, the iOS cap,
+  zero intervals.
+- **Features (35)** — `HomeBloc` and `SettingsBloc` with `bloc_test` and a
+  fixed `Clock`; the ring math on `HomeState`; the one-second ticker under
+  `fakeAsync`;
+  `ReminderCoordinator` against a recording scheduler; widget tests that tap
+  the Water and Walking `+` buttons on the real Home page.
+- **Data (6)** — the Hive repositories against a real box in a temp dir.
+
+No test waits in real time.
+
 ## Status
 
 Working:
 
-- Home — working/walking switching, live duration, water and walking rings,
-  and an interactive timeline you can pan, pinch-zoom, select, edit, delete.
+- Home — working/walking switching, live duration, water and walking rings
+  that count down, drink logging, and an interactive timeline you can pan,
+  pinch-zoom, select, edit, delete.
+- Reminders — water and walking notifications inside the working window,
+  delivered while the app is closed and restored after a reboot.
 - Settings — working window, water interval, walking interval.
 - Local persistence through Hive, with the domain layer kept pure Dart.
 - Design system extracted to `packages/healthy_hour_ui_kit`.
 - Light and dark themes.
-- `flutter analyze` clean under `very_good_analysis`.
+- `flutter analyze` clean under `very_good_analysis`; 78 app tests in CI.
 
 Not there yet:
 
-- **No notifications.** The intervals drive the on-screen rings only;
-  nothing fires while the app is closed. This is the biggest gap between the
-  app and its own premise, and it's next.
+- **Reminders are not actionable.** A notification opens the app; there is
+  no "I drank" or "start walk" button on the notification itself yet.
+- **Drinks are a timestamp, not a log.** Only the last drink is stored, so
+  there is no daily water total or history.
 - **No sync, no accounts.** Everything is on-device. An Express + Prisma +
   Postgres service — JWT auth, session CRUD, settings — is written but is
   not wired to the app or published yet.
-- **Thin tests.** One widget smoke test and three formatter unit tests. The
-  Blocs and use-cases are untested, which is a shame given `HomeBloc` takes
-  an injectable clock specifically so they'd be easy to test.
 - Not on any store.
 
 ## Code generation
