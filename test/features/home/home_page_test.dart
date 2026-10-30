@@ -56,4 +56,23 @@ void main() {
 
     expect(sessions.all.single.kind, ActivityKind.walking);
   });
+
+  testWidgets('Settings opens on top of Home and back returns', (tester) async {
+    await pumpHome(
+      tester,
+      sessions: FakeSessionRepository(),
+      hydration: FakeHydrationRepository(),
+    );
+
+    await tester.tap(find.text('Working Time'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('Adjust'), findsOneWidget);
+    expect(find.byType(BackButton), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byKey(const ValueKey('healthy-hour-brand')), findsOneWidget);
+  });
 }

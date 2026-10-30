@@ -34,14 +34,18 @@ GoRouter buildRouter({
             onOpenWalkingConfig: () => context.go('/settings'),
           ),
         ),
-      ),
-      GoRoute(
-        path: '/settings',
-        builder: (context, _) => BlocProvider(
-          create: (_) =>
-              SettingsBloc(repository: settings)..add(const SettingsStarted()),
-          child: const SettingsPage(),
-        ),
+        // Nested so `/settings` stacks on top of Home: the AppBar gets a
+        // back button and Android's back gesture returns to Home.
+        routes: [
+          GoRoute(
+            path: 'settings',
+            builder: (context, _) => BlocProvider(
+              create: (_) => SettingsBloc(repository: settings)
+                ..add(const SettingsStarted()),
+              child: const SettingsPage(),
+            ),
+          ),
+        ],
       ),
     ],
   );
