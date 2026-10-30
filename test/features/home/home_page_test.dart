@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:healthy_hour/src/app.dart';
 import 'package:healthy_hour/src/domain/domain.dart';
@@ -105,5 +106,24 @@ void main() {
     final gradient = (box.decoration as BoxDecoration).gradient!;
     final colors = tester.element(backdrop).colors;
     expect(gradient.colors.first, colors.walkingTint);
+  });
+
+  testWidgets('Home asks for dark status-bar icons in the light theme',
+      (tester) async {
+    await pumpHome(
+      tester,
+      sessions: FakeSessionRepository(),
+      hydration: FakeHydrationRepository(),
+    );
+
+    final region = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+      find
+          .ancestor(
+            of: find.byKey(const ValueKey('healthy-hour-brand')),
+            matching: find.byType(AnnotatedRegion<SystemUiOverlayStyle>),
+          )
+          .first,
+    );
+    expect(region.value.statusBarIconBrightness, Brightness.dark);
   });
 }

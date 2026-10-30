@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:healthy_hour/src/domain/domain.dart';
 import 'package:healthy_hour/src/features/activity/activity_cubit.dart';
@@ -19,16 +20,20 @@ class ActivityBackdrop extends StatelessWidget {
     final c = context.colors;
     final kind = context.watch<ActivityCubit>().state;
     final tint = kind == ActivityKind.walking ? c.walkingTint : c.workingTint;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [tint, c.background],
-          stops: const [0, 0.55],
+    // Screens without an AppBar (Home) still need the status-bar style.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: Theme.of(context).appBarTheme.systemOverlayStyle!,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [tint, c.background],
+            stops: const [0, 0.55],
+          ),
         ),
+        child: child,
       ),
-      child: child,
     );
   }
 }

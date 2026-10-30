@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:healthy_hour_ui_kit/src/theme/app_colors.dart';
 import 'package:healthy_hour_ui_kit/src/theme/app_typography.dart';
 
@@ -30,8 +31,25 @@ class AppTheme {
       textTheme: text,
       iconTheme: IconThemeData(color: c.textPrimary),
       dividerColor: c.divider,
+      // Read by every AppBar, and by `AnnotatedRegion`s on screens without
+      // one, so status-bar icons always contrast with the page.
+      appBarTheme: AppBarTheme(systemOverlayStyle: _overlay(c, brightness)),
       extensions: [c],
       splashFactory: InkSparkle.splashFactory,
+    );
+  }
+
+  /// Transparent status bar so screen tints run edge to edge, with icons
+  /// in the opposite brightness to the page: dark on light, light on dark.
+  static SystemUiOverlayStyle _overlay(AppColors c, Brightness brightness) {
+    final icons =
+        brightness == Brightness.light ? Brightness.dark : Brightness.light;
+    return SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: icons, // Android
+      statusBarBrightness: brightness, // iOS: the bar's background
+      systemNavigationBarColor: c.background,
+      systemNavigationBarIconBrightness: icons,
     );
   }
 }
