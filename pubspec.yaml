@@ -1,6 +1,6 @@
 name: healthy_hour
 description: Healthy Hour — alternates between Working and Walking sessions and reminds you to drink water.
-version: 0.1.0+1
+version: 1.0.0+2
 publish_to: none
 
 environment:
@@ -9,6 +9,7 @@ environment:
 
 dependencies:
   bloc: ^8.1.4
+  cupertino_icons: ^1.0.9
   equatable: ^2.0.5
   flutter:
     sdk: flutter
