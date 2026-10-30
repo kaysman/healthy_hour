@@ -176,17 +176,17 @@ cd packages/healthy_hour_ui_kit && flutter test
 
 ### What the tests cover
 
-78 tests in the app, laid out to mirror `lib/src/`:
+79 tests in the app, laid out to mirror `lib/src/`:
 
 - **Domain (36)** — session durations, the countdown rules, the
   switch/start use-cases (including discarding sub-minute sessions), and
   the reminder planner: window edges, the next-day roll-over, the iOS cap,
   zero intervals.
-- **Features (35)** — `HomeBloc` and `SettingsBloc` with `bloc_test` and a
+- **Features (36)** — `HomeBloc` and `SettingsBloc` with `bloc_test` and a
   fixed `Clock`; the ring math on `HomeState`; the one-second ticker under
-  `fakeAsync`;
-  `ReminderCoordinator` against a recording scheduler; widget tests that tap
-  the Water and Walking `+` buttons on the real Home page.
+  `fakeAsync`; `ReminderCoordinator` against a recording scheduler; widget
+  tests that tap the Water and Walking `+` buttons and the Settings back
+  button on the real Home page.
 - **Data (6)** — the Hive repositories against a real box in a temp dir.
 
 No test waits in real time.
@@ -204,7 +204,7 @@ Working:
 - Local persistence through Hive, with the domain layer kept pure Dart.
 - Design system extracted to `packages/healthy_hour_ui_kit`.
 - Light and dark themes.
-- `flutter analyze` clean under `very_good_analysis`; 78 app tests in CI.
+- `flutter analyze` clean under `very_good_analysis`; 79 app tests in CI.
 
 Not there yet:
 
