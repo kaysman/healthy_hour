@@ -14,7 +14,7 @@ class StartSession {
     final current = await _repo.currentSession();
     if (current != null) {
       // Discard sessions shorter than a minute — they're almost always
-      // accidental taps and clutter the timeline.
+      // accidental taps and clutter the day's history.
       if (now.difference(current.startedAt) < const Duration(minutes: 1)) {
         await _repo.deleteSession(current.id);
       } else {

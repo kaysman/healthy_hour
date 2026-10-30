@@ -36,3 +36,17 @@ class Session extends Equatable {
   @override
   List<Object?> get props => [id, kind, startedAt, endedAt];
 }
+
+extension SessionsX on Iterable<Session> {
+  /// The session you're in: the latest one with no `endedAt`.
+  Session? get ongoing {
+    Session? latest;
+    for (final s in this) {
+      if (s.isOngoing &&
+          (latest == null || s.startedAt.isAfter(latest.startedAt))) {
+        latest = s;
+      }
+    }
+    return latest;
+  }
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:healthy_hour/src/domain/domain.dart';
+import 'package:healthy_hour/src/features/activity/activity.dart';
 import 'package:healthy_hour/src/features/settings/bloc/settings_bloc.dart';
 import 'package:healthy_hour/src/features/settings/bloc/settings_event.dart';
 import 'package:healthy_hour/src/features/settings/bloc/settings_state.dart';
@@ -13,42 +14,46 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<SettingsBloc, SettingsState>(
       builder: (context, state) {
-        final c = context.colors;
-        return Scaffold(
-          backgroundColor: c.background,
-          appBar: AppBar(
-            backgroundColor: c.background,
-            elevation: 0,
-            title: const Text('Adjust'),
-          ),
-          body: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              children: [
-                const _SectionTitle(text: 'Working window'),
-                _WindowEditor(
-                  window: state.window,
-                  onChanged: (w) => context
-                      .read<SettingsBloc>()
-                      .add(SettingsWindowChanged(w)),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                const _SectionTitle(text: 'Water reminder'),
-                _IntervalSlider(
-                  value: state.water.interval,
-                  onChanged: (d) => context
-                      .read<SettingsBloc>()
-                      .add(SettingsWaterChanged(TimerConfig(interval: d))),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                const _SectionTitle(text: 'Walking reminder'),
-                _IntervalSlider(
-                  value: state.walking.interval,
-                  onChanged: (d) => context
-                      .read<SettingsBloc>()
-                      .add(SettingsWalkingChanged(TimerConfig(interval: d))),
-                ),
-              ],
+        return ActivityBackdrop(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            appBar: AppBar(
+              backgroundColor: Colors.transparent,
+              // No M3 tint/shadow when the list scrolls under it: the
+              // backdrop should read as one surface.
+              scrolledUnderElevation: 0,
+              elevation: 0,
+              title: const Text('Adjust'),
+            ),
+            body: SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.lg),
+                children: [
+                  const _SectionTitle(text: 'Working window'),
+                  _WindowEditor(
+                    window: state.window,
+                    onChanged: (w) => context
+                        .read<SettingsBloc>()
+                        .add(SettingsWindowChanged(w)),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  const _SectionTitle(text: 'Water reminder'),
+                  _IntervalSlider(
+                    value: state.water.interval,
+                    onChanged: (d) => context
+                        .read<SettingsBloc>()
+                        .add(SettingsWaterChanged(TimerConfig(interval: d))),
+                  ),
+                  const SizedBox(height: AppSpacing.xl),
+                  const _SectionTitle(text: 'Walking reminder'),
+                  _IntervalSlider(
+                    value: state.walking.interval,
+                    onChanged: (d) => context
+                        .read<SettingsBloc>()
+                        .add(SettingsWalkingChanged(TimerConfig(interval: d))),
+                  ),
+                ],
+              ),
             ),
           ),
         );

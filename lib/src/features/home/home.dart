@@ -1,5 +1,5 @@
-/// Home screen — current activity, switch CTA, embedded ruler-style timeline,
-/// and Water / Walking stat cards.
+/// Home screen — one ring for the habit due next, one-tap walk and water
+/// actions, and today's working hours scored as a grid.
 library;
 
 export 'bloc/home_bloc.dart';

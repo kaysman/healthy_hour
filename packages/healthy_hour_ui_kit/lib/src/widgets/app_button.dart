@@ -37,7 +37,7 @@ class AppButton extends StatelessWidget {
     final palette = _palette(c);
 
     final height = switch (size) {
-      AppButtonSize.small => 36.0,
+      AppButtonSize.small => 32.0,
       AppButtonSize.medium => 44.0,
       AppButtonSize.large => 52.0,
     };

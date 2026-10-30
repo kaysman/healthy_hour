@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 GoRouter buildRouter({
   required SessionRepository sessions,
   required SettingsRepository settings,
+  required HydrationRepository hydration,
 }) {
   const uuid = Uuid();
   return GoRouter(
@@ -19,24 +20,30 @@ GoRouter buildRouter({
           create: (_) => HomeBloc(
             sessions: sessions,
             settings: settings,
+            hydration: hydration,
             switchActivity: SwitchActivity(sessions),
             getTodaySessions: GetTodaySessions(sessions),
             updateSession: UpdateSession(sessions),
             deleteSession: DeleteSession(sessions),
+            logDrink: LogDrink(hydration),
+            removeDrink: RemoveDrink(hydration),
+            undoSwitchActivity: UndoSwitchActivity(sessions),
             idGenerator: uuid.v4,
           )..add(const HomeStarted()),
-          child: HomePage(
-            onOpenSettings: () => context.go('/settings'),
+          child: HomePage(onOpenSettings: () => context.go('/settings')),
+        ),
+        // Nested so `/settings` stacks on top of Home: the AppBar gets a
+        // back button and Android's back gesture returns to Home.
+        routes: [
+          GoRoute(
+            path: 'settings',
+            builder: (context, _) => BlocProvider(
+              create: (_) => SettingsBloc(repository: settings)
+                ..add(const SettingsStarted()),
+              child: const SettingsPage(),
+            ),
           ),
-        ),
-      ),
-      GoRoute(
-        path: '/settings',
-        builder: (context, _) => BlocProvider(
-          create: (_) =>
-              SettingsBloc(repository: settings)..add(const SettingsStarted()),
-          child: const SettingsPage(),
-        ),
+        ],
       ),
     ],
   );
