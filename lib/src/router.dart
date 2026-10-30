@@ -26,13 +26,11 @@ GoRouter buildRouter({
             updateSession: UpdateSession(sessions),
             deleteSession: DeleteSession(sessions),
             logDrink: LogDrink(hydration),
+            removeDrink: RemoveDrink(hydration),
+            undoSwitchActivity: UndoSwitchActivity(sessions),
             idGenerator: uuid.v4,
           )..add(const HomeStarted()),
-          child: HomePage(
-            onOpenSettings: () => context.go('/settings'),
-            onOpenWaterConfig: () => context.go('/settings'),
-            onOpenWalkingConfig: () => context.go('/settings'),
-          ),
+          child: HomePage(onOpenSettings: () => context.go('/settings')),
         ),
         // Nested so `/settings` stacks on top of Home: the AppBar gets a
         // back button and Android's back gesture returns to Home.

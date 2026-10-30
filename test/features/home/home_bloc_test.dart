@@ -23,6 +23,8 @@ void main() {
         updateSession: UpdateSession(sessions),
         deleteSession: DeleteSession(sessions),
         logDrink: LogDrink(hydration),
+        removeDrink: RemoveDrink(hydration),
+        undoSwitchActivity: UndoSwitchActivity(sessions),
         idGenerator: SequentialIds().call,
         clock: clock ?? () => now,
       );
@@ -38,6 +40,13 @@ void main() {
     kind: ActivityKind.working,
     startedAt: now.subtract(const Duration(hours: 1, minutes: 40)),
   );
+
+  final freshWork = Session(
+    id: 'fresh',
+    kind: ActivityKind.working,
+    startedAt: now.subtract(const Duration(seconds: 20)),
+  );
+  final pastDrink = now.subtract(const Duration(minutes: 40));
 
   setUp(() {
     sessions = FakeSessionRepository();
@@ -211,25 +220,132 @@ void main() {
       },
       verify: (bloc) {
         expect(bloc.state.lastDrinkAt, now);
+        expect(bloc.state.todaysDrinks, [now]);
         expect(bloc.state.waterRemaining, bloc.state.water.interval);
+      },
+    );
+
+    blocTest<HomeBloc, HomeState>(
+      "only loads today's drinks",
+      setUp: () => hydration = FakeHydrationRepository([
+        now.subtract(const Duration(days: 1)),
+        now.subtract(const Duration(minutes: 30)),
+      ]),
+      build: buildBloc,
+      act: (bloc) => bloc.add(const HomeStarted()),
+      verify: (bloc) => expect(
+        bloc.state.todaysDrinks,
+        [now.subtract(const Duration(minutes: 30))],
+      ),
+    );
+
+    blocTest<HomeBloc, HomeState>(
+      'a deleted drink leaves the log',
+      setUp: () => hydration = FakeHydrationRepository([pastDrink]),
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const HomeStarted());
+        await pumpEventQueue();
+        bloc.add(HomeDrinkDeleted(pastDrink));
+      },
+      verify: (bloc) {
+        expect(hydration.drinks, isEmpty);
+        expect(bloc.state.todaysDrinks, isEmpty);
       },
     );
   });
 
-  group('selection, edit and delete', () {
-    setUp(() => sessions = FakeSessionRepository([pastWalk, ongoingWork]));
+  group('undo', () {
+    blocTest<HomeBloc, HomeState>(
+      'every log offers a fresh undo',
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const HomeStarted());
+        await pumpEventQueue();
+        bloc.add(const HomeDrinkLogged());
+        await pumpEventQueue();
+        bloc.add(const HomeDrinkLogged());
+      },
+      verify: (bloc) => expect(
+        bloc.state.undo,
+        const HomeUndo(serial: 2, message: 'Drink logged'),
+      ),
+    );
 
     blocTest<HomeBloc, HomeState>(
-      'selects a session and clears it again',
+      'takes back a drink and the countdown it reset',
+      setUp: () => hydration = FakeHydrationRepository([pastDrink]),
       build: buildBloc,
-      act: (bloc) => bloc
-        ..add(const HomeSessionSelected('walk'))
-        ..add(const HomeSessionSelected(null)),
-      expect: () => [
-        const HomeState(selectedId: 'walk'),
-        const HomeState(),
-      ],
+      act: (bloc) async {
+        bloc.add(const HomeStarted());
+        await pumpEventQueue();
+        bloc.add(const HomeDrinkLogged());
+        await pumpEventQueue();
+        bloc.add(const HomeUndoRequested());
+      },
+      verify: (bloc) {
+        expect(hydration.drinks, [pastDrink]);
+        expect(bloc.state.lastDrinkAt, pastDrink);
+        expect(bloc.state.undo, isNull);
+      },
     );
+
+    blocTest<HomeBloc, HomeState>(
+      'takes back a walk and reopens the work session it ended',
+      setUp: () => sessions = FakeSessionRepository([pastWalk, ongoingWork]),
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const HomeStarted());
+        await pumpEventQueue();
+        bloc.add(const HomeSwitchActivityRequested(to: ActivityKind.walking));
+        await pumpEventQueue();
+        expect(bloc.state.undo?.message, 'Walk started');
+        bloc.add(const HomeUndoRequested());
+      },
+      verify: (bloc) {
+        expect(sessions.all, [pastWalk, ongoingWork]);
+        expect(bloc.state.current, ongoingWork);
+        expect(bloc.state.undo, isNull);
+      },
+    );
+
+    blocTest<HomeBloc, HomeState>(
+      'restores a session the switch discarded for being under a minute',
+      setUp: () => sessions = FakeSessionRepository([freshWork]),
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const HomeStarted());
+        await pumpEventQueue();
+        bloc.add(const HomeSwitchActivityRequested(to: ActivityKind.walking));
+        await pumpEventQueue();
+        bloc.add(const HomeUndoRequested());
+      },
+      verify: (bloc) => expect(sessions.all, [freshWork]),
+    );
+
+    blocTest<HomeBloc, HomeState>(
+      'only takes back the latest action, once',
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const HomeStarted());
+        await pumpEventQueue();
+        bloc.add(const HomeDrinkLogged());
+        await pumpEventQueue();
+        bloc.add(const HomeSwitchActivityRequested(to: ActivityKind.walking));
+        await pumpEventQueue();
+        bloc
+          ..add(const HomeUndoRequested())
+          ..add(const HomeUndoRequested());
+      },
+      verify: (bloc) {
+        expect(sessions.all, isEmpty);
+        expect(hydration.drinks, [now]);
+      },
+    );
+  });
+
+  group('edit and delete', () {
+    setUp(() => sessions = FakeSessionRepository([pastWalk, ongoingWork]));
 
     blocTest<HomeBloc, HomeState>(
       'editing a session flows back through the repository stream',
@@ -254,35 +370,14 @@ void main() {
     );
 
     blocTest<HomeBloc, HomeState>(
-      'deleting the selected session clears the selection',
+      'deleting a session flows back through the repository stream',
       build: buildBloc,
       act: (bloc) async {
-        bloc
-          ..add(const HomeStarted())
-          ..add(const HomeSessionSelected('walk'));
+        bloc.add(const HomeStarted());
         await pumpEventQueue();
         bloc.add(const HomeSessionDeleted('walk'));
       },
-      verify: (bloc) {
-        expect(bloc.state.selectedId, isNull);
-        expect(bloc.state.todaysSessions, [ongoingWork]);
-      },
-    );
-
-    blocTest<HomeBloc, HomeState>(
-      'deleting a different session keeps the selection',
-      build: buildBloc,
-      act: (bloc) async {
-        bloc
-          ..add(const HomeStarted())
-          ..add(const HomeSessionSelected('work'));
-        await pumpEventQueue();
-        bloc.add(const HomeSessionDeleted('walk'));
-      },
-      verify: (bloc) {
-        expect(bloc.state.selectedId, 'work');
-        expect(bloc.state.selected, ongoingWork);
-      },
+      verify: (bloc) => expect(bloc.state.todaysSessions, [ongoingWork]),
     );
   });
 }

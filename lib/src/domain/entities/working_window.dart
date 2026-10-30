@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-/// User-defined working hours (the "Working Time" pill on Home).
+/// User-defined working hours (the "Working Time" button on Home).
 class WorkingWindow extends Equatable {
   const WorkingWindow({
     required this.startMinutes,
